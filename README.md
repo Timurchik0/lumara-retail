@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Опт-Обувь WMS
 
-## Getting Started
+Учёт склада и продаж для оптовой торговли женской обувью (Dordoi-модель:
+Склад Китай → Склад Карго → Контейнер → Контейнер продаж).
 
-First, run the development server:
+## Что внутри
+
+- **Занести товар** — фото товара, карточка заполняется автоматически через
+  Claude Vision (название, категория, описание, цены).
+- **Приёмка** — сканирование штрихкода (камерой телефона или ТСД), приём на
+  склад с указанием количества и локации; если штрихкода производителя нет —
+  генерируется свой (`WH0000001`, ...).
+- **Касса** — сканирование нескольких товаров подряд в корзину, одно
+  оформление продажи чеком (нефискальная, внутренний учёт).
+- **Склады** — остатки по каждой локации дерева складов, перемещения между
+  локациями.
+- **История** — прошлые продажи (с чеком по каждой), приёмки, перемещения.
+
+## Стек
+
+- Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind v4
+- Prisma 7 (driver adapter) + Postgres
+- Claude Vision (`@anthropic-ai/sdk`) — для фото-интейка товаров
+- `html5-qrcode` — сканирование камерой телефона
+
+## Локальный запуск
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx prisma migrate dev   # применить миграции к базе
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Понадобится `.env` (см. `.env.example`, если есть, либо переменные ниже) —
+как минимум `DATABASE_URL` и `ANTHROPIC_API_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Переменные окружения
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Переменная | Для чего |
+|---|---|
+| `DATABASE_URL` | строка подключения к Postgres |
+| `ANTHROPIC_API_KEY` | ключ для Claude Vision (фото → карточка товара) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob — хранение загруженных фото товаров |
 
-## Learn More
+## Деплой
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Проект живёт на Vercel, подключён к этому GitHub-репозиторию — при пуше в
+`main` деплоится автоматически. База данных и хранилище фото — тоже сервисы
+Vercel (Postgres и Blob), подключаются через вкладку Storage в проекте.
