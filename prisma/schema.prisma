@@ -1,0 +1,125 @@
+// Схема данных WMS+POS для опта женской обуви.
+// Локации — дерево (Китай → Карго → Контейнер → Контейнер продаж), остаток
+// считается через ledger движений (StockMovement) + материализованный Stock,
+// тот же принцип, что "Изменение остатка" в Airtable-версии, но теперь per-location.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum LocationType {
+  CHINA_WAREHOUSE
+  CARGO
+  CONTAINER
+  SALES_CONTAINER
+}
+
+model Location {
+  id        String       @id @default(cuid())
+  name      String
+  type      LocationType
+  parentId  String?
+  parent    Location?    @relation("LocationTree", fields: [parentId], references: [id])
+  children  Location[]   @relation("LocationTree")
+  createdAt DateTime     @default(now())
+
+  stock         Stock[]
+  movementsFrom StockMovement[] @relation("MovementFrom")
+  movementsTo   StockMovement[] @relation("MovementTo")
+}
+
+enum ProductStatus {
+  NEW
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+// "Модель" обуви — карточка товара. Размеры живут отдельно в Variant,
+// потому что штрихкод и остаток считаются per-size, а не per-модель.
+model Product {
+  id          String        @id @default(cuid())
+  name        String
+  category    String?
+  description String?
+  photoUrl    String?
+  aiRaw       String?
+  status      ProductStatus @default(NEW)
+  costPrice   Float?
+  retailPrice Float?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  variants Variant[]
+}
+
+model Variant {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String
+  barcode   String?  @unique
+  createdAt DateTime @default(now())
+
+  stock     Stock[]
+  movements StockMovement[]
+
+  @@unique([productId, size])
+}
+
+// Материализованный остаток размера в конкретной локации — обновляется
+// транзакционно вместе с записью в StockMovement, чтобы не пересчитывать
+// сумму по всей истории движений на каждый запрос.
+model Stock {
+  id         String   @id @default(cuid())
+  variantId  String
+  variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+  quantity   Int      @default(0)
+
+  @@unique([variantId, locationId])
+}
+
+enum MovementType {
+  RECEIVE
+  TRANSFER
+  SALE
+  ADJUSTMENT
+}
+
+// Ledger всех перемещений — приход (fromLocation = null), перемещение между
+// локациями, продажа (toLocation = null), корректировка остатка.
+model StockMovement {
+  id             String        @id @default(cuid())
+  variantId      String
+  variant        Variant       @relation(fields: [variantId], references: [id])
+  type           MovementType
+  fromLocationId String?
+  fromLocation   Location?     @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocationId   String?
+  toLocation     Location?     @relation("MovementTo", fields: [toLocationId], references: [id])
+  quantity       Int
+  unitPrice      Float?
+  note           String?
+  createdAt      DateTime      @default(now())
+
+  saleId String?
+  sale   Sale?   @relation(fields: [saleId], references: [id])
+}
+
+// Чек кассы — группирует несколько SALE-движений (по одному на позицию),
+// пробитых одним оформлением за кассой. Нефискальный (внутренний учёт).
+model Sale {
+  id          String   @id @default(cuid())
+  totalAmount Float
+  note        String?
+  createdAt   DateTime @default(now())
+
+  movements StockMovement[]
+}
