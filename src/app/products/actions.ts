@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { put } from "@vercel/blob";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { analyzeShoePhoto } from "@/lib/vision";
@@ -20,10 +19,11 @@ async function savePhoto(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
   const ext = (file.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
   const filename = `${randomUUID()}.${ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadsDir, { recursive: true });
-  await writeFile(path.join(uploadsDir, filename), buffer);
-  return `/uploads/${filename}`;
+  const blob = await put(filename, buffer, {
+    access: "public",
+    contentType: file.type || "image/jpeg",
+  });
+  return blob.url;
 }
 
 export async function createProductAction(formData: FormData) {

@@ -7,19 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
-    "@prisma/adapter-better-sqlite3": "^7.9.1",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.9.1",
-    "better-sqlite3": "^13.0.3",
+    "@vercel/blob": "^2.8.0",
     "bwip-js": "^4.11.4",
     "html5-qrcode": "^2.3.8",
     "next": "16.3.2",
+    "pg": "^8.23.0",
     "prisma": "^7.9.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -43,8 +45,6 @@
     "@prisma/engines@7.9.1": true,
     "prisma@7.9.1": true,
     "unrs-resolver@1.12.2": true,
-    "better-sqlite3@12.11.1": true,
-    "better-sqlite3@13.0.3": true,
     "esbuild@0.28.2": true
   }
 }
