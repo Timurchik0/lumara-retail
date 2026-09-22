@@ -231,7 +231,7 @@ export default function ProductDetailPanel({
             <input
               value={sizeInput}
               onChange={(e) => setSizeInput(e.target.value)}
-              placeholder="Размер, напр. 38"
+              placeholder="38 или 36-40"
               required
               className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
@@ -250,8 +250,9 @@ export default function ProductDetailPanel({
           </button>
         </form>
         <p className="text-xs text-neutral-500 mt-1">
-          Если оставить штрихкод пустым — сгенерируется свой (WH...), как при приёмке без
-          штрихкода производителя.
+          Можно сразу несколько: через запятую (36, 37, 38) или диапазоном (36-40) — на каждый
+          размер сгенерируется свой штрихкод. Штрихкод из поля применится, только если вводишь
+          один размер; если оставить пустым — сгенерируется свой (WH...).
         </p>
       </section>
     </div>

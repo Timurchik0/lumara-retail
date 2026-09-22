@@ -5,7 +5,8 @@ import { put } from "@vercel/blob";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { analyzeShoePhoto } from "@/lib/vision";
-import { generateBarcode } from "@/lib/stock";
+import { generateBarcodeBatch } from "@/lib/stock";
+import { parseSizes } from "@/lib/sizes";
 
 export async function analyzePhotoAction(formData: FormData) {
   const file = formData.get("photo") as File | null;
@@ -42,21 +43,42 @@ export async function createProductQuickAction(formData: FormData) {
   return { id: product.id, name: product.name, photoUrl: product.photoUrl };
 }
 
+/** Размер можно ввести списком ("36, 37, 38") или диапазоном ("36-40") —
+ * тогда за один сабмит создаётся сразу несколько вариантов, у каждого свой
+ * штрихкод (генерируем пачкой, чтобы не словить дубли). Явный штрихкод из
+ * формы применяется только когда вводили ровно один размер — на диапазон
+ * один штрихкод не натянешь, каждый размер сканируется отдельно. Размеры,
+ * которые у модели уже есть, тихо пропускаем. */
+async function addVariantsCore(
+  productId: string,
+  sizesRaw: FormDataEntryValue | null,
+  explicitBarcode: string,
+) {
+  const sizes = parseSizes(sizesRaw);
+  if (sizes.length === 0) throw new Error("Укажи размер");
+
+  const existing = await prisma.variant.findMany({
+    where: { productId, size: { in: sizes } },
+    select: { size: true },
+  });
+  const existingSizes = new Set(existing.map((v) => v.size));
+  const newSizes = sizes.filter((s) => !existingSizes.has(s));
+  if (newSizes.length === 0) return;
+
+  const barcodes =
+    newSizes.length === 1 && explicitBarcode
+      ? [explicitBarcode]
+      : await generateBarcodeBatch(newSizes.length);
+
+  await prisma.variant.createMany({
+    data: newSizes.map((size, i) => ({ productId, size, barcode: barcodes[i] })),
+  });
+}
+
 export async function addVariantAction(formData: FormData) {
   const productId = String(formData.get("productId"));
-  const size = String(formData.get("size") ?? "").trim();
-  let barcode = String(formData.get("barcode") ?? "").trim();
-
-  if (!size) throw new Error("Укажи размер");
-
-  if (!barcode) {
-    barcode = await generateBarcode();
-  }
-
-  await prisma.variant.create({
-    data: { productId, size, barcode },
-  });
-
+  const barcode = String(formData.get("barcode") ?? "").trim();
+  await addVariantsCore(productId, formData.get("size"), barcode);
   redirect(`/products/${productId}`);
 }
 
@@ -128,13 +150,8 @@ export async function listProductsForBrowseAction() {
  * для split-view на /products, где справа обновляется панель, а не вся страница. */
 export async function addVariantInlineAction(formData: FormData) {
   const productId = String(formData.get("productId"));
-  const size = String(formData.get("size") ?? "").trim();
-  let barcode = String(formData.get("barcode") ?? "").trim();
-
-  if (!size) throw new Error("Укажи размер");
-  if (!barcode) barcode = await generateBarcode();
-
-  await prisma.variant.create({ data: { productId, size, barcode } });
+  const barcode = String(formData.get("barcode") ?? "").trim();
+  await addVariantsCore(productId, formData.get("size"), barcode);
   return getProductDetailAction(productId);
 }
 
