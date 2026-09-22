@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Опт-Обувь WMS",
-  description: "Учёт склада и продаж — опт женской обуви",
+  title: "Люмара Розница",
+  description: "Учёт склада и продаж — женская обувь",
 };
 
 const navItems = [
@@ -35,7 +35,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-neutral-50 text-neutral-900">
         <header className="hidden md:flex items-center gap-6 border-b border-neutral-200 bg-white px-6 py-3">
-          <span className="font-semibold">Опт-Обувь WMS</span>
+          <span className="font-semibold">
+            <span className="text-amber-500">Люмара</span> Розница
+          </span>
           <nav className="flex gap-4 text-sm">
             {navItems.map((item) => (
               <Link

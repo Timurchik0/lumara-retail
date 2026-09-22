@@ -22,7 +22,9 @@ export default async function HomePage() {
   return (
     <div className="max-w-2xl mx-auto p-4 flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold">Опт-Обувь WMS</h1>
+        <h1 className="text-xl font-semibold">
+          <span className="text-amber-500">Люмара</span> Розница
+        </h1>
         <p className="text-sm text-neutral-500">Склад и продажи — от фото до кассы</p>
       </div>
 
