@@ -1,11 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import {
-  addVariantAction,
-  approveProductAction,
-  updateProductRedirectAction,
-} from "@/app/products/actions";
+import { approveProductAction, updateProductRedirectAction } from "@/app/products/actions";
 import DeleteProductButton from "@/app/products/DeleteProductButton";
+import AddSizesForm from "@/app/products/AddSizesForm";
 
 const statusLabel: Record<string, string> = {
   NEW: "Новое",
@@ -184,29 +181,10 @@ export default async function ProductDetailPage({
 
       <section>
         <h2 className="font-medium mb-2">Добавить размер</h2>
-        <form action={addVariantAction} className="flex flex-col gap-2">
-          <input type="hidden" name="productId" value={product.id} />
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              name="size"
-              placeholder="38 или 36-40"
-              required
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-            />
-            <input
-              name="barcode"
-              placeholder="Штрихкод (если есть)"
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <button className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium">
-            + Добавить
-          </button>
-        </form>
+        <AddSizesForm productId={product.id} />
         <p className="text-xs text-neutral-500 mt-1">
-          Можно сразу несколько: через запятую (36, 37, 38) или диапазоном (36-40) — на каждый
-          размер сгенерируется свой штрихкод. Штрихкод из поля применится, только если вводишь
-          один размер; если оставить пустым — сгенерируется свой (WH...).
+          Можно сразу несколько: через запятую (36, 37, 38) или диапазоном (36-40) — появится
+          строка на каждый размер, штрихкод впиши свой или оставь пустым (сгенерируется WH...).
         </p>
       </section>
     </div>

@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { analyzeShoePhoto } from "@/lib/vision";
 import { generateBarcodeBatch } from "@/lib/stock";
-import { parseSizes } from "@/lib/sizes";
 
 export async function analyzePhotoAction(formData: FormData) {
   const file = formData.get("photo") as File | null;
@@ -41,45 +40,6 @@ export async function createProductQuickAction(formData: FormData) {
     data: { name, category, description, photoUrl, status: "IN_REVIEW" },
   });
   return { id: product.id, name: product.name, photoUrl: product.photoUrl };
-}
-
-/** Размер можно ввести списком ("36, 37, 38") или диапазоном ("36-40") —
- * тогда за один сабмит создаётся сразу несколько вариантов, у каждого свой
- * штрихкод (генерируем пачкой, чтобы не словить дубли). Явный штрихкод из
- * формы применяется только когда вводили ровно один размер — на диапазон
- * один штрихкод не натянешь, каждый размер сканируется отдельно. Размеры,
- * которые у модели уже есть, тихо пропускаем. */
-async function addVariantsCore(
-  productId: string,
-  sizesRaw: FormDataEntryValue | null,
-  explicitBarcode: string,
-) {
-  const sizes = parseSizes(sizesRaw);
-  if (sizes.length === 0) throw new Error("Укажи размер");
-
-  const existing = await prisma.variant.findMany({
-    where: { productId, size: { in: sizes } },
-    select: { size: true },
-  });
-  const existingSizes = new Set(existing.map((v) => v.size));
-  const newSizes = sizes.filter((s) => !existingSizes.has(s));
-  if (newSizes.length === 0) return;
-
-  const barcodes =
-    newSizes.length === 1 && explicitBarcode
-      ? [explicitBarcode]
-      : await generateBarcodeBatch(newSizes.length);
-
-  await prisma.variant.createMany({
-    data: newSizes.map((size, i) => ({ productId, size, barcode: barcodes[i] })),
-  });
-}
-
-export async function addVariantAction(formData: FormData) {
-  const productId = String(formData.get("productId"));
-  const barcode = String(formData.get("barcode") ?? "").trim();
-  await addVariantsCore(productId, formData.get("size"), barcode);
-  redirect(`/products/${productId}`);
 }
 
 export async function approveProductAction(formData: FormData) {
@@ -146,12 +106,40 @@ export async function listProductsForBrowseAction() {
   });
 }
 
-/** Те же действия, что addVariantAction/approveProductAction, но без redirect —
- * для split-view на /products, где справа обновляется панель, а не вся страница. */
-export async function addVariantInlineAction(formData: FormData) {
+/** Каждый размер — свой вариант со своим штрихкодом (продаётся поштучно,
+ * сканируется на кассе отдельно): фронт (AddSizesForm) уже разложил
+ * размер/диапазон на отдельные строки "размер + штрихкод" — тут просто
+ * создаём вариант на каждую. Пустой штрихкод в строке — сгенерируется свой
+ * (WH...), генерируем пачкой, чтобы не словить дубли при нескольких сразу.
+ * Размеры, которые у модели уже есть, тихо пропускаем. */
+export async function addVariantsWithBarcodesAction(formData: FormData) {
   const productId = String(formData.get("productId"));
-  const barcode = String(formData.get("barcode") ?? "").trim();
-  await addVariantsCore(productId, formData.get("size"), barcode);
+  const sizes = formData.getAll("size").map(String);
+  const barcodesRaw = formData.getAll("barcode").map((b) => String(b).trim());
+  if (sizes.length === 0) throw new Error("Укажи размер");
+
+  const existing = await prisma.variant.findMany({
+    where: { productId, size: { in: sizes } },
+    select: { size: true },
+  });
+  const existingSizes = new Set(existing.map((v) => v.size));
+
+  const rows = sizes
+    .map((size, i) => ({ size, barcode: barcodesRaw[i] || "" }))
+    .filter((r) => !existingSizes.has(r.size));
+  if (rows.length === 0) return getProductDetailAction(productId);
+
+  const needGenerated = rows.filter((r) => !r.barcode).length;
+  const generated = needGenerated > 0 ? await generateBarcodeBatch(needGenerated) : [];
+  let gi = 0;
+  await prisma.variant.createMany({
+    data: rows.map((r) => ({
+      productId,
+      size: r.size,
+      barcode: r.barcode || generated[gi++],
+    })),
+  });
+
   return getProductDetailAction(productId);
 }
 

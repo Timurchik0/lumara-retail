@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import {
-  addVariantInlineAction,
   approveProductInlineAction,
   updateProductAction,
   getProductDetailAction,
 } from "./actions";
 import DeleteProductButton from "./DeleteProductButton";
+import AddSizesForm from "./AddSizesForm";
 
 type ProductDetail = Awaited<ReturnType<typeof getProductDetailAction>>;
 
@@ -28,8 +28,6 @@ export default function ProductDetailPanel({
   onDeleted?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [sizeInput, setSizeInput] = useState("");
-  const [barcodeInput, setBarcodeInput] = useState("");
   const [editing, setEditing] = useState(false);
   const [editPending, startEditTransition] = useTransition();
 
@@ -47,21 +45,6 @@ export default function ProductDetailPanel({
       const updated = await updateProductAction(fd);
       if (updated) onChange(updated);
       setEditing(false);
-    });
-  }
-
-  function addVariant(e: React.FormEvent) {
-    e.preventDefault();
-    if (!sizeInput.trim()) return;
-    const fd = new FormData();
-    fd.set("productId", product.id);
-    fd.set("size", sizeInput);
-    fd.set("barcode", barcodeInput);
-    startTransition(async () => {
-      const updated = await addVariantInlineAction(fd);
-      if (updated) onChange(updated);
-      setSizeInput("");
-      setBarcodeInput("");
     });
   }
 
@@ -226,33 +209,10 @@ export default function ProductDetailPanel({
 
       <section>
         <h2 className="font-medium mb-2">Добавить размер</h2>
-        <form onSubmit={addVariant} className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              value={sizeInput}
-              onChange={(e) => setSizeInput(e.target.value)}
-              placeholder="38 или 36-40"
-              required
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-            />
-            <input
-              value={barcodeInput}
-              onChange={(e) => setBarcodeInput(e.target.value)}
-              placeholder="Штрихкод (если есть)"
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <button
-            disabled={pending}
-            className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-          >
-            + Добавить
-          </button>
-        </form>
+        <AddSizesForm productId={product.id} onAdded={onChange} />
         <p className="text-xs text-neutral-500 mt-1">
-          Можно сразу несколько: через запятую (36, 37, 38) или диапазоном (36-40) — на каждый
-          размер сгенерируется свой штрихкод. Штрихкод из поля применится, только если вводишь
-          один размер; если оставить пустым — сгенерируется свой (WH...).
+          Можно сразу несколько: через запятую (36, 37, 38) или диапазоном (36-40) — появится
+          строка на каждый размер, штрихкод впиши свой или оставь пустым (сгенерируется WH...).
         </p>
       </section>
     </div>
