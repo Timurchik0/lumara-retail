@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ImagePlus, Check } from "lucide-react";
 import { analyzePhotoAction, createProductQuickAction } from "@/app/products/actions";
 import { compressImage } from "@/lib/compressImage";
 
@@ -107,7 +106,7 @@ export default function BulkPhotoIntakeForm() {
         htmlFor="bulk-photo-input"
         className="rounded-2xl border-2 border-dashed border-neutral-300 bg-white p-6 flex flex-col items-center gap-2 text-center cursor-pointer"
       >
-        <ImagePlus className="h-8 w-8 text-neutral-500" strokeWidth={1.75} />
+        <span className="text-3xl">🖼</span>
         <span className="text-sm text-neutral-600 font-medium">
           Выбрать несколько фото — карточки создадутся сами
         </span>
@@ -143,7 +142,7 @@ export default function BulkPhotoIntakeForm() {
                   href={`/products/${d.productId}`}
                   className="text-xs text-green-700 inline-flex items-center gap-1"
                 >
-                  <Check className="h-3.5 w-3.5" strokeWidth={2} /> Создано — открыть
+                  ✅ Создано — открыть
                 </Link>
               ) : (
                 <span className="text-xs text-neutral-400">Не трогай — почти готово</span>
