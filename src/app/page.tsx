@@ -1,16 +1,6 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 
-// Сводка меняется на каждой приёмке/продаже — не кэшировать статикой.
-export const dynamic = "force-dynamic";
-
-export default async function HomePage() {
-  const [productCount, stockSum, pendingCount] = await Promise.all([
-    prisma.product.count(),
-    prisma.stock.aggregate({ _sum: { quantity: true } }),
-    prisma.product.count({ where: { status: "IN_REVIEW" } }),
-  ]);
-
+export default function HomePage() {
   const cards = [
     { href: "/products/new", icon: "📷", title: "Занести товар", desc: "Фото → карточка сама заполняется" },
     { href: "/receive", icon: "📥", title: "Приёмка", desc: "Сканируй штрихкод и принимай на склад" },
@@ -26,21 +16,6 @@ export default async function HomePage() {
           <span className="text-amber-500">Люмара</span> Розница
         </h1>
         <p className="text-sm text-neutral-500">Склад и продажи — от фото до кассы</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center">
-          <div className="text-2xl font-semibold">{productCount}</div>
-          <div className="text-xs text-neutral-500">моделей</div>
-        </div>
-        <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center">
-          <div className="text-2xl font-semibold">{stockSum._sum.quantity ?? 0}</div>
-          <div className="text-xs text-neutral-500">единиц на складе</div>
-        </div>
-        <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center">
-          <div className="text-2xl font-semibold">{pendingCount}</div>
-          <div className="text-xs text-neutral-500">на проверке</div>
-        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

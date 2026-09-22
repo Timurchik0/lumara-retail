@@ -70,6 +70,39 @@ export async function approveProductAction(formData: FormData) {
   redirect(`/products/${productId}`);
 }
 
+export async function updateProductAction(formData: FormData) {
+  const productId = String(formData.get("productId"));
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Название обязательно");
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      name,
+      category: String(formData.get("category") ?? "").trim() || null,
+      description: String(formData.get("description") ?? "").trim() || null,
+      costPrice: formData.get("costPrice") ? Number(formData.get("costPrice")) : null,
+      retailPrice: formData.get("retailPrice") ? Number(formData.get("retailPrice")) : null,
+    },
+  });
+  return getProductDetailAction(productId);
+}
+
+/** Та же правка, но для обычной серверной страницы /products/[id] (мобильный
+ * фолбэк) — там форма без клиентского стейта, поэтому редирект вместо возврата данных. */
+export async function updateProductRedirectAction(formData: FormData) {
+  await updateProductAction(formData);
+  redirect(`/products/${String(formData.get("productId"))}`);
+}
+
+/** Насовсем удаляет карточку. Варианты и остатки каскадно удалятся по схеме
+ * (onDelete: Cascade), а вот если по товару уже была продажа — StockMovement
+ * ссылается на вариант без каскада, и удаление осознанно упадёт с ошибкой
+ * внешнего ключа, чтобы не портить финансовую историю. */
+export async function deleteProductInlineAction(productId: string) {
+  await prisma.product.delete({ where: { id: productId } });
+}
+
 const productDetailInclude = {
   variants: {
     include: { stock: { include: { location: true } } },

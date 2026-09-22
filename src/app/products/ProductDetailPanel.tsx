@@ -4,8 +4,10 @@ import { useState, useTransition } from "react";
 import {
   addVariantInlineAction,
   approveProductInlineAction,
+  updateProductAction,
   getProductDetailAction,
 } from "./actions";
+import DeleteProductButton from "./DeleteProductButton";
 
 type ProductDetail = Awaited<ReturnType<typeof getProductDetailAction>>;
 
@@ -19,18 +21,32 @@ const statusLabel: Record<string, string> = {
 export default function ProductDetailPanel({
   product,
   onChange,
+  onDeleted,
 }: {
   product: NonNullable<ProductDetail>;
   onChange: (updated: NonNullable<ProductDetail>) => void;
+  onDeleted?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [sizeInput, setSizeInput] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editPending, startEditTransition] = useTransition();
 
   function approve(status: "APPROVED" | "REJECTED") {
     startTransition(async () => {
       const updated = await approveProductInlineAction(product.id, status);
       if (updated) onChange(updated);
+    });
+  }
+
+  function saveEdit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startEditTransition(async () => {
+      const updated = await updateProductAction(fd);
+      if (updated) onChange(updated);
+      setEditing(false);
     });
   }
 
@@ -98,6 +114,73 @@ export default function ProductDetailPanel({
         </div>
       )}
 
+      <div className="rounded-xl border border-neutral-200 bg-white p-3">
+        <button
+          type="button"
+          onClick={() => setEditing((v) => !v)}
+          className="text-sm font-medium"
+        >
+          {editing ? "Скрыть редактирование" : "Редактировать карточку"}
+        </button>
+        {editing && (
+          <>
+            <form onSubmit={saveEdit} className="flex flex-col gap-2 mt-3">
+              <input type="hidden" name="productId" value={product.id} />
+              <input
+                name="name"
+                defaultValue={product.name}
+                required
+                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+              <input
+                name="category"
+                defaultValue={product.category ?? ""}
+                placeholder="Категория"
+                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+              <textarea
+                name="description"
+                defaultValue={product.description ?? ""}
+                placeholder="Характеристики"
+                rows={2}
+                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  name="costPrice"
+                  type="number"
+                  step="0.01"
+                  defaultValue={product.costPrice ?? ""}
+                  placeholder="Закупка, с"
+                  className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                />
+                <input
+                  name="retailPrice"
+                  type="number"
+                  step="0.01"
+                  defaultValue={product.retailPrice ?? ""}
+                  placeholder="Розница, с"
+                  className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                disabled={editPending}
+                className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                Сохранить
+              </button>
+            </form>
+            <div className="mt-3 pt-3 border-t border-neutral-100">
+              <DeleteProductButton
+                productId={product.id}
+                productName={product.name}
+                onDeleted={onDeleted}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
       <section>
         <h2 className="font-medium mb-2">Размеры и остатки</h2>
         <ul className="flex flex-col gap-2">
@@ -143,23 +226,25 @@ export default function ProductDetailPanel({
 
       <section>
         <h2 className="font-medium mb-2">Добавить размер</h2>
-        <form onSubmit={addVariant} className="flex gap-2">
-          <input
-            value={sizeInput}
-            onChange={(e) => setSizeInput(e.target.value)}
-            placeholder="Размер, напр. 38"
-            required
-            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-          />
-          <input
-            value={barcodeInput}
-            onChange={(e) => setBarcodeInput(e.target.value)}
-            placeholder="Штрихкод производителя (если есть)"
-            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-          />
+        <form onSubmit={addVariant} className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={sizeInput}
+              onChange={(e) => setSizeInput(e.target.value)}
+              placeholder="Размер, напр. 38"
+              required
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <input
+              value={barcodeInput}
+              onChange={(e) => setBarcodeInput(e.target.value)}
+              placeholder="Штрихкод (если есть)"
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
           <button
             disabled={pending}
-            className="rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium whitespace-nowrap disabled:opacity-50"
+            className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             + Добавить
           </button>

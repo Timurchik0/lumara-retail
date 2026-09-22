@@ -70,6 +70,12 @@ export default function ProductsBrowser({
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
   }
 
+  function handleDetailDeleted() {
+    setProducts((prev) => prev.filter((p) => p.id !== selectedId));
+    setDetail(null);
+    setSelectedId(null);
+  }
+
   return (
     <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-6rem)]">
       <div className="md:w-80 md:shrink-0 flex flex-col gap-3 md:overflow-y-auto md:pr-2">
@@ -164,7 +170,11 @@ export default function ProductsBrowser({
       <div className="hidden md:block flex-1 rounded-2xl border border-neutral-200 bg-white p-6 md:overflow-y-auto">
         {loadingDetail && <p className="text-sm text-neutral-500">Загружаю…</p>}
         {!loadingDetail && detail && (
-          <ProductDetailPanel product={detail} onChange={handleDetailChange} />
+          <ProductDetailPanel
+            product={detail}
+            onChange={handleDetailChange}
+            onDeleted={handleDetailDeleted}
+          />
         )}
         {!loadingDetail && !detail && (
           <p className="text-sm text-neutral-500">Выбери товар слева, чтобы увидеть детали.</p>

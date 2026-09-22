@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { addVariantAction, approveProductAction } from "@/app/products/actions";
+import {
+  addVariantAction,
+  approveProductAction,
+  updateProductRedirectAction,
+} from "@/app/products/actions";
+import DeleteProductButton from "@/app/products/DeleteProductButton";
 
 const statusLabel: Record<string, string> = {
   NEW: "Новое",
@@ -76,6 +81,56 @@ export default async function ProductDetailPage({
         </div>
       )}
 
+      <details className="rounded-xl border border-neutral-200 bg-white p-3">
+        <summary className="text-sm font-medium cursor-pointer">Редактировать карточку</summary>
+        <form action={updateProductRedirectAction} className="flex flex-col gap-2 mt-3">
+          <input type="hidden" name="productId" value={product.id} />
+          <input
+            name="name"
+            defaultValue={product.name}
+            required
+            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          />
+          <input
+            name="category"
+            defaultValue={product.category ?? ""}
+            placeholder="Категория"
+            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          />
+          <textarea
+            name="description"
+            defaultValue={product.description ?? ""}
+            placeholder="Характеристики"
+            rows={2}
+            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              name="costPrice"
+              type="number"
+              step="0.01"
+              defaultValue={product.costPrice ?? ""}
+              placeholder="Закупка, с"
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <input
+              name="retailPrice"
+              type="number"
+              step="0.01"
+              defaultValue={product.retailPrice ?? ""}
+              placeholder="Розница, с"
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <button className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium">
+            Сохранить
+          </button>
+        </form>
+        <div className="mt-3 pt-3 border-t border-neutral-100">
+          <DeleteProductButton productId={product.id} productName={product.name} />
+        </div>
+      </details>
+
       <section>
         <h2 className="font-medium mb-2">Размеры и остатки</h2>
         <ul className="flex flex-col gap-2">
@@ -129,20 +184,22 @@ export default async function ProductDetailPage({
 
       <section>
         <h2 className="font-medium mb-2">Добавить размер</h2>
-        <form action={addVariantAction} className="flex gap-2">
+        <form action={addVariantAction} className="flex flex-col gap-2">
           <input type="hidden" name="productId" value={product.id} />
-          <input
-            name="size"
-            placeholder="Размер, напр. 38"
-            required
-            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-          />
-          <input
-            name="barcode"
-            placeholder="Штрихкод производителя (если есть)"
-            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-          />
-          <button className="rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium whitespace-nowrap">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              name="size"
+              placeholder="Размер, напр. 38"
+              required
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <input
+              name="barcode"
+              placeholder="Штрихкод (если есть)"
+              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <button className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium">
             + Добавить
           </button>
         </form>
