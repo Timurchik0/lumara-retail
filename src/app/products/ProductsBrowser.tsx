@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import ProductDetailPanel from "./ProductDetailPanel";
 import { getProductDetailAction, listProductsForBrowseAction } from "./actions";
 
@@ -35,7 +34,6 @@ export default function ProductsBrowser({
 }: {
   initialProducts: ProductListItem[];
 }) {
-  const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -52,17 +50,20 @@ export default function ProductsBrowser({
     });
   }, [products, query, statusFilter]);
 
+  // Марат прислал референс (Airtable-галерея) — клик по фото открывает
+  // модалку с карточкой поверх сетки, а не отдельную страницу. Одно и то же
+  // поведение на мобильном и десктопе.
   async function selectProduct(id: string) {
-    // На мобильном нет места под две колонки — открываем как обычную страницу.
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      router.push(`/products/${id}`);
-      return;
-    }
     setSelectedId(id);
     setLoadingDetail(true);
     const data = await getProductDetailAction(id);
     setDetail(data);
     setLoadingDetail(false);
+  }
+
+  function closeModal() {
+    setSelectedId(null);
+    setDetail(null);
   }
 
   function handleDetailChange(updated: NonNullable<ProductDetail>) {
@@ -72,13 +73,12 @@ export default function ProductsBrowser({
 
   function handleDetailDeleted() {
     setProducts((prev) => prev.filter((p) => p.id !== selectedId));
-    setDetail(null);
-    setSelectedId(null);
+    closeModal();
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-6rem)]">
-      <div className="md:w-80 md:shrink-0 flex flex-col gap-3 md:overflow-y-auto md:pr-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Товары</h1>
           <a
@@ -91,95 +91,108 @@ export default function ProductsBrowser({
         <a href="/products/new-bulk" className="text-sm text-neutral-500 underline self-start">
           Массово
         </a>
+      </div>
 
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск по названию/категории…"
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-        />
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Поиск по названию/категории…"
+        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+      />
 
-        <div className="flex flex-wrap gap-2">
-          {statusFilters.map((f) => (
+      <div className="flex flex-wrap gap-2">
+        {statusFilters.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => setStatusFilter(f.value)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium border ${
+              statusFilter === f.value
+                ? "bg-neutral-900 text-white border-neutral-900"
+                : "bg-white text-neutral-600 border-neutral-300"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && <p className="text-neutral-500 text-sm">Ничего не нашлось.</p>}
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        {filtered.map((p) => {
+          const totalStock = p.variants.reduce(
+            (sum, v) => sum + v.stock.reduce((s, st) => s + st.quantity, 0),
+            0,
+          );
+          const isSelected = p.id === selectedId;
+          return (
             <button
-              key={f.value}
-              type="button"
-              onClick={() => setStatusFilter(f.value)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium border ${
-                statusFilter === f.value
-                  ? "bg-neutral-900 text-white border-neutral-900"
-                  : "bg-white text-neutral-600 border-neutral-300"
-              }`}
+              key={p.id}
+              onClick={() => selectProduct(p.id)}
+              className={`flex flex-col rounded-xl border overflow-hidden text-left ${
+                isSelected ? "border-neutral-900" : "border-neutral-200"
+              } bg-white`}
             >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
-          <p className="text-neutral-500 text-sm">Ничего не нашлось.</p>
-        )}
-
-        <ul className="flex flex-col gap-2">
-          {filtered.map((p) => {
-            const totalStock = p.variants.reduce(
-              (sum, v) => sum + v.stock.reduce((s, st) => s + st.quantity, 0),
-              0,
-            );
-            const isSelected = p.id === selectedId;
-            return (
-              <li key={p.id}>
-                <button
-                  onClick={() => selectProduct(p.id)}
-                  className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left ${
-                    isSelected
-                      ? "border-neutral-900 bg-neutral-50"
-                      : "border-neutral-200 bg-white"
-                  }`}
-                >
-                  {p.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.photoUrl}
-                      alt={p.name}
-                      className="h-14 w-14 rounded-lg object-cover bg-neutral-100"
-                    />
-                  ) : (
-                    <div className="h-14 w-14 rounded-lg bg-neutral-100 flex items-center justify-center text-2xl">
-                      👟
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{p.name}</div>
-                    <div className="text-xs text-neutral-500">
-                      {p.category ?? "Без категории"} · остаток {totalStock}
-                    </div>
+              <div className="relative aspect-square bg-neutral-100">
+                {p.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.photoUrl} alt={p.name} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-3xl">
+                    👟
                   </div>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${statusColor[p.status]}`}
-                  >
-                    {statusLabel[p.status]}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                )}
+                <span
+                  className={`absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap ${statusColor[p.status]}`}
+                >
+                  {statusLabel[p.status]}
+                </span>
+              </div>
+              <div className="p-2">
+                <div className="text-sm font-medium truncate">{p.name}</div>
+                <div className="text-xs text-neutral-500 truncate">
+                  {p.category ?? "Без категории"}
+                </div>
+                <div className="text-xs text-neutral-500">остаток {totalStock}</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="hidden md:block flex-1 rounded-2xl border border-neutral-200 bg-white p-6 md:overflow-y-auto">
-        {loadingDetail && <p className="text-sm text-neutral-500">Загружаю…</p>}
-        {!loadingDetail && detail && (
-          <ProductDetailPanel
-            product={detail}
-            onChange={handleDetailChange}
-            onDeleted={handleDetailDeleted}
-          />
-        )}
-        {!loadingDetail && !detail && (
-          <p className="text-sm text-neutral-500">Выбери товар слева, чтобы увидеть детали.</p>
-        )}
-      </div>
+      {selectedId && (
+        <div
+          className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/50 p-0 md:p-4"
+          onClick={closeModal}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-2xl bg-white overflow-y-auto"
+          >
+            <div className="sticky top-0 z-10 flex justify-end bg-white px-3 py-2 border-b border-neutral-100">
+              <button
+                type="button"
+                onClick={closeModal}
+                aria-label="Закрыть"
+                className="h-8 w-8 rounded-full bg-neutral-900 text-white flex items-center justify-center shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 pb-6 pt-4">
+              {loadingDetail && <p className="text-sm text-neutral-500">Загружаю…</p>}
+              {!loadingDetail && detail && (
+                <ProductDetailPanel
+                  product={detail}
+                  onChange={handleDetailChange}
+                  onDeleted={handleDetailDeleted}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
