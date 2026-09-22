@@ -50,11 +50,11 @@ export default async function SaleReceiptPage({
                   {m.variant.product.name}
                 </div>
                 <div className="text-xs text-neutral-500">
-                  р.{m.variant.size} · {m.quantity} шт. × {(m.unitPrice ?? 0).toFixed(2)} $
+                  р.{m.variant.size} · {m.quantity} шт. × {(m.unitPrice ?? 0).toFixed(2)} с
                 </div>
               </div>
               <div className="text-sm font-medium shrink-0">
-                {((m.unitPrice ?? 0) * m.quantity).toFixed(2)} $
+                {((m.unitPrice ?? 0) * m.quantity).toFixed(2)} с
               </div>
             </div>
           ))}
@@ -62,7 +62,7 @@ export default async function SaleReceiptPage({
 
         <div className="border-t border-neutral-200 pt-3 flex items-center justify-between">
           <span className="text-sm text-neutral-500">{count} шт. итого</span>
-          <span className="text-lg font-semibold">{sale.totalAmount.toFixed(2)} $</span>
+          <span className="text-lg font-semibold">{sale.totalAmount.toFixed(2)} с</span>
         </div>
       </div>
     </div>

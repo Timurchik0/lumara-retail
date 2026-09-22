@@ -170,7 +170,7 @@ export default function PhotoIntakeForm() {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          Закупочная цена, $
+          Закупочная цена, с
           <input
             name="costPrice"
             type="number"
@@ -179,7 +179,7 @@ export default function PhotoIntakeForm() {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Розничная цена, $
+          Розничная цена, с
           <input
             name="retailPrice"
             type="number"

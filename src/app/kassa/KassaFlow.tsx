@@ -146,14 +146,14 @@ export default function KassaFlow() {
                 {item.name}, р.{item.size} × {item.quantity}
               </span>
               <span className="font-medium">
-                {(item.unitPrice * item.quantity).toFixed(2)} $
+                {(item.unitPrice * item.quantity).toFixed(2)} с
               </span>
             </div>
           ))}
         </div>
         <div className="flex items-center justify-between px-1">
           <span className="text-sm text-neutral-600">Итого</span>
-          <span className="text-lg font-semibold">{receipt.totalAmount.toFixed(2)} $</span>
+          <span className="text-lg font-semibold">{receipt.totalAmount.toFixed(2)} с</span>
         </div>
         <div className="flex gap-2">
           <Link
@@ -248,7 +248,7 @@ export default function KassaFlow() {
                     onChange={(e) => updatePrice(item.variantId, Number(e.target.value))}
                     className="w-16 rounded-lg border border-neutral-300 px-2 py-1 text-sm ml-2"
                   />
-                  <span className="text-xs text-neutral-400">$</span>
+                  <span className="text-xs text-neutral-400">с</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -285,7 +285,7 @@ export default function KassaFlow() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs text-neutral-500">Итого</div>
-                <div className="text-lg font-semibold">{total.toFixed(2)} $</div>
+                <div className="text-lg font-semibold">{total.toFixed(2)} с</div>
               </div>
               <button
                 type="button"

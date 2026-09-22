@@ -59,7 +59,7 @@ export default async function HistoryPage() {
                 >
                   <div>
                     <div className="text-sm font-medium">
-                      {count} шт. на {sale.totalAmount.toFixed(2)} $
+                      {count} шт. на {sale.totalAmount.toFixed(2)} с
                     </div>
                     <div className="text-xs text-neutral-500">
                       {formatDateTime(sale.createdAt)}

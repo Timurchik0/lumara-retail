@@ -71,7 +71,7 @@ export default function ProductDetailPanel({
             <p className="text-sm text-neutral-600 mt-1">{product.description}</p>
           )}
           <p className="text-sm mt-2">
-            Закупка: {product.costPrice ?? "—"}$ · Розница: {product.retailPrice ?? "—"}$
+            Закупка: {product.costPrice ?? "—"} с · Розница: {product.retailPrice ?? "—"} с
           </p>
           <p className="text-xs mt-1 inline-block rounded-full bg-neutral-100 px-2 py-1">
             {statusLabel[product.status]}
