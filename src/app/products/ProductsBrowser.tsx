@@ -82,6 +82,9 @@ export default function ProductsBrowser({
             + Новая модель
           </a>
         </div>
+        <a href="/products/new-bulk" className="text-sm text-neutral-500 underline self-start">
+          Массово
+        </a>
 
         <input
           value={query}

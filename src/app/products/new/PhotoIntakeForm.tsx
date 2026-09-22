@@ -1,57 +1,62 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { analyzePhotoAction, createProductAction } from "@/app/products/actions";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { analyzePhotoAction, createProductQuickAction } from "@/app/products/actions";
 import { compressImage } from "@/lib/compressImage";
 
+// Не нужен промежуточный экран с полями — кидаешь фото, карточка сразу
+// создаётся в статусе "На рассмотрении", остальное (размеры, цены)
+// дозаполняется потом на странице самого товара.
 export default function PhotoIntakeForm() {
+  const router = useRouter();
   const [preview, setPreview] = useState<string | null>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [aiSkipped, setAiSkipped] = useState(false);
-  const [pending, startTransition] = useTransition();
-
+  const [status, setStatus] = useState<"idle" | "analyzing" | "saving" | "error">("idle");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    setAnalyzing(true);
-    setAiSkipped(false);
 
     const compressed = await compressImage(file);
-    setPhotoFile(compressed);
     setPreview(URL.createObjectURL(compressed));
+    setStatus("analyzing");
 
-    const fd = new FormData();
-    fd.append("photo", compressed);
-    const result = await analyzePhotoAction(fd);
-    setAnalyzing(false);
+    const analyzeForm = new FormData();
+    analyzeForm.append("photo", compressed);
 
-    if (result) {
-      setName(result.name);
-      setCategory(result.category);
-      setDescription(result.description);
-    } else {
-      setAiSkipped(true);
+    // Если анализ подвиснет (медленная сеть, сбой у модели) — не держим
+    // человека вечно, через 25с идём дальше без AI-полей.
+    let result: Awaited<ReturnType<typeof analyzePhotoAction>> = null;
+    try {
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000));
+      result = await Promise.race([analyzePhotoAction(analyzeForm), timeout]);
+    } catch {
+      result = null;
+    }
+
+    setStatus("saving");
+    const saveForm = new FormData();
+    saveForm.set("photo", compressed);
+    saveForm.set("name", result?.name ?? "");
+    saveForm.set("category", result?.category ?? "");
+    saveForm.set("description", result?.description ?? "");
+
+    try {
+      const product = await createProductQuickAction(saveForm);
+      router.push(`/products/${product.id}`);
+    } catch {
+      setStatus("error");
     }
   }
 
-  function handleSubmit(formData: FormData) {
-    if (photoFile) formData.set("photo", photoFile);
-    formData.set("name", name);
-    formData.set("category", category);
-    formData.set("description", description);
-    startTransition(() => {
-      createProductAction(formData);
-    });
+  function retry() {
+    setPreview(null);
+    setStatus("idle");
   }
 
   return (
-    <form action={handleSubmit} className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {/* Скрытые инпуты: камера открывает съёмку сразу, галерея — выбор готового фото */}
       <input
         ref={cameraInputRef}
@@ -73,7 +78,7 @@ export default function PhotoIntakeForm() {
         <div className="rounded-2xl border-2 border-dashed border-neutral-300 bg-white p-8 flex flex-col items-center gap-4 text-center">
           <div className="text-4xl">👟</div>
           <p className="text-sm text-neutral-500">
-            Сфотографируй модель или выбери готовое фото — карточка заполнится сама
+            Сфотографируй модель или выбери готовое фото — карточка создастся сама
           </p>
           <div className="flex gap-3">
             <button
@@ -100,102 +105,26 @@ export default function PhotoIntakeForm() {
             alt="Фото товара"
             className="w-full aspect-square object-cover rounded-2xl bg-neutral-100"
           />
-          <button
-            type="button"
-            onClick={() => {
-              setPreview(null);
-              setPhotoFile(null);
-            }}
-            className="absolute top-3 right-3 h-8 w-8 rounded-full bg-black/60 text-white flex items-center justify-center"
-          >
-            ✕
-          </button>
-          {analyzing && (
+          {(status === "analyzing" || status === "saving") && (
             <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center text-white text-sm">
-              Анализирую фото…
+              {status === "analyzing" ? "Анализирую фото…" : "Сохраняю карточку…"}
             </div>
           )}
         </div>
       )}
 
-      {aiSkipped && (
-        <p className="text-xs text-amber-600">
-          Автозаполнение недоступно (не задан ANTHROPIC_API_KEY) — заполни поля вручную.
-        </p>
+      {status === "error" && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-red-600">Не получилось сохранить карточку — попробуй ещё раз.</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="self-start rounded-full bg-neutral-900 text-white px-4 py-2 text-sm font-medium"
+          >
+            Попробовать снова
+          </button>
+        </div>
       )}
-
-      <label className="flex flex-col gap-1 text-sm">
-        Название
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          placeholder="Туфли на каблуке бежевые"
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Категория
-        <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          placeholder="Туфли"
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Характеристики
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          rows={2}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Размеры в наличии
-        <input
-          name="sizes"
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          placeholder="36, 37, 38, 39, 40"
-        />
-        <span className="text-xs text-neutral-500">
-          Через запятую — на каждый сразу сгенерируется свой штрихкод. Можно оставить
-          пустым и добавить размеры позже, на странице товара.
-        </span>
-      </label>
-
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Закупочная цена, с
-          <input
-            name="costPrice"
-            type="number"
-            step="0.01"
-            className="rounded-lg border border-neutral-300 px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Розничная цена, с
-          <input
-            name="retailPrice"
-            type="number"
-            step="0.01"
-            className="rounded-lg border border-neutral-300 px-3 py-2"
-          />
-        </label>
-      </div>
-
-      <button
-        type="submit"
-        disabled={pending || !name}
-        className="rounded-full bg-neutral-900 text-white px-5 py-3 text-sm font-medium disabled:opacity-40"
-      >
-        {pending ? "Сохраняю…" : "Сохранить карточку"}
-      </button>
-    </form>
+    </div>
   );
 }

@@ -5,7 +5,7 @@ import { put } from "@vercel/blob";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { analyzeShoePhoto } from "@/lib/vision";
-import { generateBarcode, generateBarcodeBatch } from "@/lib/stock";
+import { generateBarcode } from "@/lib/stock";
 
 export async function analyzePhotoAction(formData: FormData) {
   const file = formData.get("photo") as File | null;
@@ -26,53 +26,20 @@ async function savePhoto(file: File): Promise<string> {
   return blob.url;
 }
 
-export async function createProductAction(formData: FormData) {
-  const name = String(formData.get("name") ?? "").trim();
+/** Быстрое занесение — фото закидывается и карточка сохраняется сама, без
+ * ручного ввода размеров/цен. Человек потом дозаполняет и одобряет уже на
+ * странице товара. Используется и для одиночного, и для массового занесения. */
+export async function createProductQuickAction(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim() || "Без названия";
   const category = String(formData.get("category") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
-  const costPrice = formData.get("costPrice")
-    ? Number(formData.get("costPrice"))
-    : null;
-  const retailPrice = formData.get("retailPrice")
-    ? Number(formData.get("retailPrice"))
-    : null;
-
-  if (!name) throw new Error("Название обязательно");
-
-  // Размеры вводятся через запятую/пробел, напр. "36, 37, 38" — сразу заводим
-  // по варианту на каждый, со своим авто-штрихкодом, чтобы не делать это отдельным шагом.
-  const sizes = String(formData.get("sizes") ?? "")
-    .split(/[,\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
   const file = formData.get("photo") as File | null;
   const photoUrl = file && file.size > 0 ? await savePhoto(file) : null;
 
   const product = await prisma.product.create({
-    data: {
-      name,
-      category,
-      description,
-      costPrice,
-      retailPrice,
-      photoUrl,
-      status: "IN_REVIEW",
-    },
+    data: { name, category, description, photoUrl, status: "IN_REVIEW" },
   });
-
-  if (sizes.length > 0) {
-    const barcodes = await generateBarcodeBatch(sizes.length);
-    await prisma.variant.createMany({
-      data: sizes.map((size, i) => ({
-        productId: product.id,
-        size,
-        barcode: barcodes[i],
-      })),
-    });
-  }
-
-  redirect(`/products/${product.id}`);
+  return { id: product.id, name: product.name, photoUrl: product.photoUrl };
 }
 
 export async function addVariantAction(formData: FormData) {
